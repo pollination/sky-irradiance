@@ -58,6 +58,12 @@ class AnnualSkyRadiationEntryPoint(DAG):
         default='hourly', spec={'type': 'string', 'enum': ['hourly', 'cumulative']}
     )
 
+    order_by = Inputs.str(
+        description='Order of the output results. By default the results are ordered '
+        'to include the results for a single sensor in each row.', default='sensor',
+        spec={'type': 'string', 'enum': ['sensor', 'datetime']}
+    )
+
     model = Inputs.file(
         description='A Honeybee model in HBJSON file format.',
         extensions=['json', 'hbjson'],
@@ -68,6 +74,18 @@ class AnnualSkyRadiationEntryPoint(DAG):
         description='Wea file.',
         extensions=['wea'],
         alias=wea_input
+    )
+
+    timestep = Inputs.int(
+        description='Input wea timestep. This value will be used to divide the '
+        'cumulative results.', default=1,
+        spec={'type': 'integer', 'minimum': 1, 'maximum': 60}
+    )
+
+    leap_year = Inputs.str(
+        description='A flag to indicate if datetimes in the wea file are for a leap '
+        'year.', default='full-year',
+        spec={'type': 'string', 'enum': ['full-year', 'leap-year']}
     )
 
     @task(template=CreateSunMatrix)
@@ -85,7 +103,10 @@ class AnnualSkyRadiationEntryPoint(DAG):
         ]
 
     @task(template=ParseSunUpHours, needs=[generate_sunpath])
-    def parse_sun_up_hours(self, sun_modifiers=generate_sunpath._outputs.sun_modifiers):
+    def parse_sun_up_hours(
+        self, sun_modifiers=generate_sunpath._outputs.sun_modifiers, leap_year=leap_year,
+        timestep=timestep
+            ):
         return [
             {
                 'from': ParseSunUpHours()._outputs.sun_up_hours,
@@ -155,7 +176,8 @@ class AnnualSkyRadiationEntryPoint(DAG):
         grid_name='{{item.full_id}}',
         sensor_grid=create_rad_folder._outputs.model_folder,
         sky_dome=create_sky_dome._outputs.sky_dome,
-        sky_matrix=create_sky._outputs.sky_matrix
+        sky_matrix=create_sky._outputs.sky_matrix,
+        order_by=order_by
     ):
         pass
 

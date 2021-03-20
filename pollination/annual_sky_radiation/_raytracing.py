@@ -46,6 +46,12 @@ class AnnualSkyRadiationRayTracing(DAG):
         description='Path to sky dome file.'
     )
 
+    order_by = Inputs.str(
+        description='Order of the output results. By default the results are ordered '
+        'to include the results for a single sensor in each row.', default='sensor',
+        spec={'type': 'string', 'enum': ['sensor', 'datetime']}
+    )
+
     @task(template=SplitGrid)
     def split_grid(self, sensor_count=sensor_count, input_grid=sensor_grid):
         return [
@@ -53,6 +59,7 @@ class AnnualSkyRadiationRayTracing(DAG):
             {'from': SplitGrid()._outputs.output_folder, 'to': '00_sub_grids'}
         ]
 
+    # TODO: add a step to set divide_by to 1/timestep if  sky is cumulative.
     @task(
         template=DaylightCoefficient, needs=[split_grid],
         loop=split_grid._outputs.grids_list, sub_folder='01_radiation',
@@ -67,7 +74,8 @@ class AnnualSkyRadiationRayTracing(DAG):
         sensor_grid=split_grid._outputs.output_folder,
         conversion='0.265 0.670 0.065',  # divide by 179
         scene_file=octree_file,
-        output_format='a'
+        output_format='a',
+        order_by=order_by
             ):
         return [
             {
