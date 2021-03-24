@@ -10,7 +10,7 @@ from pollination.honeybee_radiance.sky import CreateSkyDome, CreateSkyMatrix
 from pollination.alias.inputs.model import hbjson_model_input
 from pollination.alias.inputs.wea import wea_input
 from pollination.alias.inputs.north import north_input
-from pollination.alias.outputs.daylight import sort_annual_daylight_results
+from pollination.alias.outputs.daylight import annual_daylight_results
 
 from ._raytracing import AnnualSkyRadiationRayTracing
 
@@ -193,7 +193,7 @@ class AnnualSkyRadiationEntryPoint(DAG):
     results = Outputs.folder(
         description='Total radiation results.',
         source='results',
-        alias=sort_annual_daylight_results
+        alias=annual_daylight_results
     )
 
     # I keep this here for fixing the issue with supporting file reference sources
