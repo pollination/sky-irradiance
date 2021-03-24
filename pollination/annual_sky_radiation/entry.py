@@ -88,6 +88,13 @@ class AnnualSkyRadiationEntryPoint(DAG):
         spec={'type': 'string', 'enum': ['full-year', 'leap-year']}
     )
 
+    black_out = Inputs.str(
+        default='default',
+        description='A value to indicate if the black material should be used for . '
+        'the calculation. Valid values are default and black. Default value is default.',
+        spec={'type': 'string', 'enum': ['black', 'default']}
+    )
+
     @task(template=CreateSunMatrix)
     def generate_sunpath(self, north=north, wea=wea, output_type=1):
         """Create sunpath for sun-up-hours.
@@ -130,7 +137,9 @@ class AnnualSkyRadiationEntryPoint(DAG):
         ]
 
     @task(template=CreateOctree, needs=[create_rad_folder])
-    def create_octree(self, model=create_rad_folder._outputs.model_folder):
+    def create_octree(
+        self, model=create_rad_folder._outputs.model_folder, black_out=black_out
+            ):
         """Create octree from radiance folder."""
         return [
             {
@@ -186,3 +195,10 @@ class AnnualSkyRadiationEntryPoint(DAG):
         source='results',
         alias=sort_annual_daylight_results
     )
+
+    # I keep this here for fixing the issue with supporting file reference sources
+    # in queenbee-luigi
+    # results_info = Outputs.list(
+    #     description='Total radiation results information.',
+    #     source='results/grids_info.json', item_type='JSONObject'
+    # )
