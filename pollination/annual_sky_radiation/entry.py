@@ -38,9 +38,12 @@ class AnnualSkyRadiationEntryPoint(DAG):
         default='-ab 1'
     )
 
-    sensor_grid = Inputs.str(
-        description='A grid name or a pattern to filter the sensor grids. By default '
-        'all the grids in HBJSON model will be exported.', default='*'
+    grid_filter = Inputs.str(
+        description='Text for a grid identifer or a pattern to filter the sensor grids '
+        'of the model that are simulated. For instance, first_floor_* will simulate '
+        'only the sensor grids that have an identifier that starts with '
+        'first_floor_. By default, all grids in the model will be simulated.',
+        default='*'
     )
 
     sky_density = Inputs.int(
@@ -122,7 +125,7 @@ class AnnualSkyRadiationEntryPoint(DAG):
         ]
 
     @task(template=CreateRadianceFolderGrid)
-    def create_rad_folder(self, input_model=model, sensor_grid=sensor_grid):
+    def create_rad_folder(self, input_model=model, grid_filter=grid_filter):
         """Translate the input model to a radiance folder."""
         return [
             {'from': CreateRadianceFolderGrid()._outputs.model_folder, 'to': 'model'},
