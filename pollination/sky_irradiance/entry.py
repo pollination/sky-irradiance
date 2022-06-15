@@ -12,11 +12,11 @@ from pollination.alias.inputs.wea import wea_input
 from pollination.alias.inputs.north import north_input
 from pollination.alias.outputs.daylight import annual_daylight_results
 
-from ._raytracing import AnnualSkyRadiationRayTracing
+from ._raytracing import SkyIrradianceRayTracing
 
 
 @dataclass
-class AnnualSkyRadiationEntryPoint(DAG):
+class SkyIrradianceEntryPoint(DAG):
     """Annual Sky Radiation entry point."""
 
     # inputs
@@ -39,7 +39,7 @@ class AnnualSkyRadiationEntryPoint(DAG):
     )
 
     grid_filter = Inputs.str(
-        description='Text for a grid identifer or a pattern to filter the sensor grids '
+        description='Text for a grid identifier or a pattern to filter the sensor grids '
         'of the model that are simulated. For instance, first_floor_* will simulate '
         'only the sensor grids that have an identifier that starts with '
         'first_floor_. By default, all grids in the model will be simulated.',
@@ -172,7 +172,7 @@ class AnnualSkyRadiationEntryPoint(DAG):
         ]
 
     @task(
-        template=AnnualSkyRadiationRayTracing,
+        template=SkyIrradianceRayTracing,
         needs=[
             create_sky_dome, create_octree, create_sky, create_rad_folder
         ],

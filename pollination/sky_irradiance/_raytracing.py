@@ -9,7 +9,7 @@ from pollination.honeybee_radiance.coefficient import DaylightCoefficient
 
 
 @dataclass
-class AnnualSkyRadiationRayTracing(DAG):
+class SkyIrradianceRayTracing(DAG):
     # inputs
 
     sensor_count = Inputs.int(
