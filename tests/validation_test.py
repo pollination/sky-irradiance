@@ -1,8 +1,8 @@
-from pollination.annual_sky_radiation.entry import AnnualSkyRadiationEntryPoint
+from pollination.sky_irradiance.entry import SkyIrradianceEntryPoint
 from queenbee.recipe.dag import DAG
 
 
 def test_annual_sky_radiation():
-    recipe = AnnualSkyRadiationEntryPoint().queenbee
-    assert recipe.name == 'annual-sky-radiation-entry-point'
+    recipe = SkyIrradianceEntryPoint().queenbee
+    assert recipe.name == 'sky-irradiance-entry-point'
     assert isinstance(recipe, DAG)

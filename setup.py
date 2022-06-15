@@ -9,7 +9,7 @@ with open('requirements.txt') as f:
 
 # normal setuptool inputs
 setuptools.setup(
-    name='pollination-annual-sky-radiation',                                     # will be used for package name
+    name='pollination-sky-irradiance',                                     # will be used for package name
     author='ladybug-tools',                                                 # the owner account for this package - required if pushed to Pollination
     author_email='info@ladybug.tools',
     packages=setuptools.find_namespace_packages(                            # required - that's how pollination find the package
@@ -18,7 +18,7 @@ setuptools.setup(
     install_requires=requirements,
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
-    url='https://github.com/pollination/annual-sky-radiation',                   # will be translated to home
+    url='https://github.com/pollination/annual-sky-irradiance',                   # will be translated to home
     project_urls={
         'icon': 'https://raw.githubusercontent.com/ladybug-tools/artwork/master/icons_components/honeybee/png/annualrecipe.png',
         'docker': 'https://hub.docker.com/r/ladybugtools/honeybee-radiance'
@@ -28,7 +28,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     maintainer='mostapha, ladybug-tools',                                   # Package maintainers. For multiple maintainers use comma
     maintainer_email='mostapha@ladybug.tools, info@ladybug.tools',
-    keywords='honeybee, radiance, ladybug-tools, daylight, annual-sky-radiation',# will be used as keywords
+    keywords='honeybee, radiance, ladybug-tools, daylight, sky-irradiance',# will be used as keywords
     license='PolyForm Shield License 1.0.0, https://polyformproject.org/wp-content/uploads/2020/06/PolyForm-Shield-1.0.0.txt',  # the license link should be separated by a comma
     zip_safe=False
 )
