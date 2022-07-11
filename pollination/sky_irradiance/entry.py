@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pollination.honeybee_radiance.sun import CreateSunMatrix, ParseSunUpHours
 from pollination.honeybee_radiance.translate import CreateRadianceFolderGrid
 from pollination.honeybee_radiance.octree import CreateOctree
+from pollination.honeybee_radiance.grid import SplitGridFolder, MergeFolderData
 from pollination.honeybee_radiance.sky import CreateSkyDome, CreateSkyMatrix
 
 
@@ -10,6 +11,8 @@ from pollination.honeybee_radiance.sky import CreateSkyDome, CreateSkyMatrix
 from pollination.alias.inputs.model import hbjson_model_input
 from pollination.alias.inputs.wea import wea_input
 from pollination.alias.inputs.north import north_input
+from pollination.alias.inputs.grid import grid_filter_input, \
+    min_sensor_count_input, cpu_count
 from pollination.alias.outputs.daylight import annual_daylight_results
 
 from ._raytracing import SkyIrradianceRayTracing
@@ -27,10 +30,23 @@ class SkyIrradianceEntryPoint(DAG):
         alias=north_input
     )
 
-    sensor_count = Inputs.int(
-        default=200,
-        description='The maximum number of grid points per parallel execution.',
-        spec={'type': 'integer', 'minimum': 1}
+    cpu_count = Inputs.int(
+        default=50,
+        description='The maximum number of CPUs for parallel execution. This will be '
+        'used to determine the number of sensors run by each worker.',
+        spec={'type': 'integer', 'minimum': 1},
+        alias=cpu_count
+    )
+
+    min_sensor_count = Inputs.int(
+        description='The minimum number of sensors in each sensor grid after '
+        'redistributing the sensors based on cpu_count. This value takes '
+        'precedence over the cpu_count and can be used to ensure that '
+        'the parallelization does not result in generating unnecessarily small '
+        'sensor grids. The default value is set to 1, which means that the '
+        'cpu_count is always respected.', default=500,
+        spec={'type': 'integer', 'minimum': 1},
+        alias=min_sensor_count_input
     )
 
     radiance_parameters = Inputs.str(
@@ -43,7 +59,8 @@ class SkyIrradianceEntryPoint(DAG):
         'of the model that are simulated. For instance, first_floor_* will simulate '
         'only the sensor grids that have an identifier that starts with '
         'first_floor_. By default, all grids in the model will be simulated.',
-        default='*'
+        default='*',
+        alias=grid_filter_input
     )
 
     sky_density = Inputs.int(
@@ -128,7 +145,9 @@ class SkyIrradianceEntryPoint(DAG):
     def create_rad_folder(self, input_model=model, grid_filter=grid_filter):
         """Translate the input model to a radiance folder."""
         return [
-            {'from': CreateRadianceFolderGrid()._outputs.model_folder, 'to': 'model'},
+            {
+                'from': CreateRadianceFolderGrid()._outputs.model_folder,
+                'to': 'model'},
             {
                 'from': CreateRadianceFolderGrid()._outputs.sensor_grids_file,
                 'to': 'results/grids_info.json'
@@ -172,26 +191,65 @@ class SkyIrradianceEntryPoint(DAG):
         ]
 
     @task(
+        template=SplitGridFolder, needs=[create_rad_folder],
+        sub_paths={'input_folder': 'grid'}
+    )
+    def split_grid_folder(
+        self, input_folder=create_rad_folder._outputs.model_folder,
+        cpu_count=cpu_count, cpus_per_grid=3, min_sensor_count=min_sensor_count
+    ):
+        """Split sensor grid folder based on the number of CPUs"""
+        return [
+            {
+                'from': SplitGridFolder()._outputs.output_folder,
+                'to': 'resources/grid'
+            },
+            {
+                'from': SplitGridFolder()._outputs.dist_info,
+                'to': 'initial_results/final/_redist_info.json'
+            },
+            {
+                'from': SplitGridFolder()._outputs.sensor_grids,
+                'description': 'Sensor grids information.'
+            }
+        ]
+
+    @task(
         template=SkyIrradianceRayTracing,
         needs=[
-            create_sky_dome, create_octree, create_sky, create_rad_folder
+            create_sky_dome, create_octree, create_sky, generate_sunpath,
+            create_rad_folder, split_grid_folder
         ],
-        loop=create_rad_folder._outputs.sensor_grids,
-        sub_folder='initial_results/{{item.name}}',  # create a subfolder for each grid
-        sub_paths={'sensor_grid': 'grid/{{item.full_id}}.pts'}
+        loop=split_grid_folder._outputs.sensor_grids,
+        sub_folder='initial_results/{{item.full_id}}',  # create a subfolder for each grid
+        sub_paths={'sensor_grid': '{{item.full_id}}.pts'}
     )
     def annual_sky_radiation_raytracing(
         self,
-        sensor_count=sensor_count,
         radiance_parameters=radiance_parameters,
         octree_file=create_octree._outputs.scene_file,
         grid_name='{{item.full_id}}',
-        sensor_grid=create_rad_folder._outputs.model_folder,
+        sensor_grid=split_grid_folder._outputs.output_folder,
+        sensor_count='{{item.count}}',
         sky_dome=create_sky_dome._outputs.sky_dome,
         sky_matrix=create_sky._outputs.sky_matrix,
         order_by=order_by
     ):
         pass
+
+    @task(
+        template=MergeFolderData,
+        needs=[annual_sky_radiation_raytracing]
+    )
+    def restructure_results(
+        self, input_folder='initial_results/final', extension='ill'
+    ):
+        return [
+            {
+                'from': MergeFolderData()._outputs.output_folder,
+                'to': 'results'
+            }
+        ]
 
     results = Outputs.folder(
         description='Total radiation results.',
