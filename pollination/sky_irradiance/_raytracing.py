@@ -3,7 +3,6 @@
 from pollination_dsl.dag import Inputs, DAG, task
 from dataclasses import dataclass
 
-from pollination.honeybee_radiance.grid import SplitGrid, MergeFiles
 from pollination.honeybee_radiance.contrib import DaylightContribution
 from pollination.honeybee_radiance.coefficient import DaylightCoefficient
 
@@ -11,12 +10,6 @@ from pollination.honeybee_radiance.coefficient import DaylightCoefficient
 @dataclass
 class SkyIrradianceRayTracing(DAG):
     # inputs
-
-    sensor_count = Inputs.int(
-        default=200,
-        description='The maximum number of grid points per parallel execution',
-        spec={'type': 'integer', 'minimum': 1}
-    )
 
     radiance_parameters = Inputs.str(
         description='The radiance parameters for ray tracing',
@@ -38,6 +31,10 @@ class SkyIrradianceRayTracing(DAG):
         extensions=['pts']
     )
 
+    sensor_count = Inputs.int(
+        description='Number of sensors in the input sensor grid.'
+    )
+
     sky_matrix = Inputs.file(
         description='Path to skymtx file.'
     )
@@ -52,26 +49,16 @@ class SkyIrradianceRayTracing(DAG):
         spec={'type': 'string', 'enum': ['sensor', 'datetime']}
     )
 
-    @task(template=SplitGrid)
-    def split_grid(self, sensor_count=sensor_count, input_grid=sensor_grid):
-        return [
-            {'from': SplitGrid()._outputs.grids_list},
-            {'from': SplitGrid()._outputs.output_folder, 'to': '00_sub_grids'}
-        ]
-
     # TODO: add a step to set divide_by to 1/timestep if  sky is cumulative.
-    @task(
-        template=DaylightCoefficient, needs=[split_grid],
-        loop=split_grid._outputs.grids_list, sub_folder='01_radiation',
-        sub_paths={'sensor_grid': '{{item.path}}'}
-    )
+    @task(template=DaylightCoefficient)
     def total_sky(
         self,
+        name=grid_name,
         radiance_parameters=radiance_parameters,
         fixed_radiance_parameters='-aa 0.0 -I -c 1',
-        sensor_count='{{item.count}}',
+        sensor_count=sensor_count,
         sky_matrix=sky_matrix, sky_dome=sky_dome,
-        sensor_grid=split_grid._outputs.output_folder,
+        sensor_grid=sensor_grid,
         conversion='0.265 0.670 0.065',  # divide by 179
         scene_file=octree_file,
         output_format='a',
@@ -80,18 +67,6 @@ class SkyIrradianceRayTracing(DAG):
         return [
             {
                 'from': DaylightContribution()._outputs.result_file,
-                'to': '{{item.name}}.ill'
-            }
-        ]
-
-    @task(
-        template=MergeFiles, needs=[total_sky]
-    )
-    def merge_direct_results(
-            self, name=grid_name, extension='.ill', folder='01_radiation'):
-        return [
-            {
-                'from': MergeFiles()._outputs.result_file,
-                'to': '../../results/{{self.name}}.ill'
+                'to': '../final/{{self.name}}.ill'
             }
         ]
