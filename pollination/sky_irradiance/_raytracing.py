@@ -3,7 +3,6 @@
 from pollination_dsl.dag import Inputs, DAG, task
 from dataclasses import dataclass
 
-from pollination.honeybee_radiance.contrib import DaylightContribution
 from pollination.honeybee_radiance.coefficient import DaylightCoefficient
 
 
@@ -49,7 +48,7 @@ class SkyIrradianceRayTracing(DAG):
         spec={'type': 'string', 'enum': ['sensor', 'datetime']}
     )
 
-    # TODO: add a step to set divide_by to 1/timestep if  sky is cumulative.
+    # TODO: add a step to set divide_by to 1/timestep if sky is cumulative.
     @task(template=DaylightCoefficient)
     def total_sky(
         self,
@@ -66,7 +65,7 @@ class SkyIrradianceRayTracing(DAG):
             ):
         return [
             {
-                'from': DaylightContribution()._outputs.result_file,
+                'from': DaylightCoefficient()._outputs.result_file,
                 'to': '../final/{{self.name}}.ill'
             }
         ]
